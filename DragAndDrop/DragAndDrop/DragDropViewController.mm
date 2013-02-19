@@ -57,6 +57,7 @@ typedef std::deque<SObjectData> CellList_t;
     UIView *_tmpView;
     
     bool _dragging;
+    bool _panning;
     UITableView *_fromTable;
     UITableView *_toTable;
     CellList_t *_fromList;
@@ -170,6 +171,7 @@ typedef std::deque<SObjectData> CellList_t;
     
     _tmpView = nil;
     _dragging = false;
+    _panning = false;
     _draggedIdx = -1;
     _fromTable = nil;
     _toTable = nil;
@@ -286,6 +288,7 @@ state2str (UIGestureRecognizerState state)
     _tmpView = nil;
     
     _dragging = false;
+    _panning = false;
     _draggedIdx = -1;
     _fromTable = nil;
     _toTable = nil;
@@ -342,7 +345,6 @@ state2str (UIGestureRecognizerState state)
     
     if (_dragging) {
         [self cancelDragging];
-        return;
     }
     
     [self startDragging:indexPath.row
@@ -393,19 +395,22 @@ state2str (UIGestureRecognizerState state)
     list[indexPath.row].safeGetField("Name", Name);
     NSLog(@"LP Cell row(%d) value(%s)", indexPath.row, Name.c_str());
     
-    if (_dragging) {
-        if (state == UIGestureRecognizerStateBegan) {
+    if (state == UIGestureRecognizerStateBegan) {
+        if (_dragging) {
             [self cancelDragging];
-            return;
         }
-        else {
-            return;
+
+        [self startDragging:indexPath.row
+                draggedName:[NSString stringWithUTF8String:Name.c_str()]
+                   location:[gestureRecognizer locationInView:self.view]];
+    }
+    else if (state == UIGestureRecognizerStateEnded) {
+        if (_dragging) {
+            if (! _panning) {
+                [self cancelDragging];
+            }
         }
     }
-    
-    [self startDragging:indexPath.row
-            draggedName:[NSString stringWithUTF8String:Name.c_str()]
-               location:[gestureRecognizer locationInView:self.view]];
 }
 
 - (void)handleLPA:(UIGestureRecognizer *)gestureRecognizer {
@@ -431,6 +436,10 @@ state2str (UIGestureRecognizerState state)
     
     CGPoint loc = [gestureRecognizer locationInView:self.view];
     NSLog(@"PAN (%9s) (%f,%f)", state2str(state), loc.x, loc.y);
+
+    if (state == UIGestureRecognizerStateBegan) {
+        _panning = true;
+    }
     
     if (state == UIGestureRecognizerStateEnded) {
         if (_dragging) {
